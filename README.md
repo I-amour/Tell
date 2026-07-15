@@ -4,9 +4,8 @@
 
 🔗 **Live:** [i-amour.github.io/tell](https://i-amour.github.io/tell)
 
-> Add a screenshot here once it's deployed — a picture of the annotated report earns more attention than any paragraph. Save it as `screenshot.png` in the repo and it'll render below.
->
-> `![Tell analysing a sample phishing email](screenshot.png)`
+ <img width="1366" height="672" alt="image" src="https://github.com/user-attachments/assets/1c7ed2d6-8488-484e-ad7f-c26aad86e4b2" />
+
 
 ---
 
