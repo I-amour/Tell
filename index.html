@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tell — email phishing examiner</title>
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin>
+<link href="https://api.fontshare.com/v2/css?f[]=clash-display@600,500&f[]=general-sans@400,500,600&f[]=jetbrains-mono@400,500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f2f2ef;          /* soft cool porcelain */
+    --surface:#ffffff;
+    --ink:#191a17;         /* near-black */
+    --muted:#6c6d68;       /* secondary text */
+    --faint:#9a9b95;       /* tertiary */
+    --line:#e7e7e2;        /* hairline */
+    --line-2:#dcdcd6;
+    --field:#f7f7f4;
+
+    --low:#137a52;   --low-tint:#e2f1e9;   --low-line:#bfe0cf;
+    --med:#a5720f;   --med-tint:#f6eacf;   --med-line:#e7d3a3;
+    --high:#c03826;  --high-tint:#f7e0da;  --high-line:#eec4ba;
+
+    --shadow-sm:0 1px 2px rgba(25,26,23,.05);
+    --shadow-md:0 1px 2px rgba(25,26,23,.04), 0 18px 40px -26px rgba(25,26,23,.32);
+    --shadow-lg:0 2px 4px rgba(25,26,23,.06), 0 26px 50px -24px rgba(25,26,23,.4);
+    --r-lg:20px; --r-md:14px; --r-sm:10px;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);
+    font-family:"General Sans",system-ui,-apple-system,sans-serif;
+    font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1120px;margin:0 auto;padding:26px 22px 80px}
+
+  /* Top bar */
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .brand{display:flex;align-items:center;gap:11px}
+  .mark{width:34px;height:34px;border-radius:9px;background:var(--ink);color:#fff;
+    display:grid;place-items:center;font-family:"Clash Display",sans-serif;font-weight:600;
+    font-size:19px;box-shadow:var(--shadow-sm)}
+  .brand-name{font-family:"Clash Display",sans-serif;font-weight:600;font-size:20px;letter-spacing:-.01em}
+
+  /* Hero */
+  .hero{margin:52px 0 40px;max-width:22ch}
+  .hero h1{font-family:"Clash Display",sans-serif;font-weight:600;
+    font-size:clamp(40px,7vw,68px);line-height:1.02;letter-spacing:-.02em;margin:0}
+  .hero h1 em{font-style:normal;color:var(--high)}
+  .hero p{font-size:clamp(17px,2.2vw,20px);color:var(--muted);max-width:30ch;margin:18px 0 0;line-height:1.5}
+
+  /* Card */
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);
+    padding:26px;box-shadow:var(--shadow-md)}
+  .label{font-size:14px;font-weight:500;color:var(--muted);margin:0 0 11px;display:block}
+  textarea{width:100%;min-height:186px;resize:vertical;background:var(--field);
+    border:1px solid var(--line-2);border-radius:var(--r-md);padding:16px 18px;color:var(--ink);
+    font-family:"JetBrains Mono",ui-monospace,monospace;font-size:13.5px;line-height:1.65;
+    transition:border-color .15s ease,box-shadow .15s ease}
+  textarea::placeholder{color:var(--faint)}
+  textarea:focus{outline:none;border-color:var(--ink);box-shadow:0 0 0 4px rgba(25,26,23,.08)}
+
+  .controls{display:flex;gap:11px;flex-wrap:wrap;align-items:center;margin-top:16px}
+  .btn{font-family:"General Sans",sans-serif;font-weight:500;font-size:15px;cursor:pointer;
+    border-radius:var(--r-sm);padding:12px 22px;border:1px solid transparent;
+    transition:transform .16s ease,box-shadow .16s ease,background .16s ease,border-color .16s ease}
+  .btn:focus-visible{outline:none;box-shadow:0 0 0 4px rgba(25,26,23,.14)}
+  .btn-primary{background:var(--ink);color:#fff;box-shadow:var(--shadow-sm),0 10px 22px -14px rgba(25,26,23,.7)}
+  .btn-primary:hover{background:#000;transform:translateY(-1px);box-shadow:var(--shadow-md)}
+  .btn-primary:active{transform:translateY(0)}
+  .btn-soft{background:var(--surface);color:var(--ink);border-color:var(--line-2);box-shadow:var(--shadow-sm)}
+  .btn-soft:hover{border-color:#c3c3bc;transform:translateY(-1px)}
+  .btn-quiet{background:transparent;color:var(--muted);padding:12px 12px}
+  .btn-quiet:hover{color:var(--ink)}
+  .note{font-size:13.5px;color:var(--faint);margin-left:auto;max-width:32ch;line-height:1.4}
+
+  /* Report */
+  .report{display:grid;grid-template-columns:1.05fr .95fr;gap:20px;margin-top:22px}
+  .panel-title{display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+    padding-bottom:15px;border-bottom:1px solid var(--line);margin-bottom:22px}
+  .panel-title h2{font-family:"Clash Display",sans-serif;font-weight:600;font-size:18px;margin:0;letter-spacing:-.01em}
+  .panel-title .meta{font-size:13px;color:var(--faint)}
+
+  /* Verdict */
+  .verdict{display:flex;align-items:center;gap:15px;padding:17px 18px;border-radius:var(--r-md);
+    border:1px solid;animation:rise .5s cubic-bezier(.2,.8,.2,1) both}
+  .verdict.high{background:var(--high-tint);border-color:var(--high-line)}
+  .verdict.med{background:var(--med-tint);border-color:var(--med-line)}
+  .verdict.low{background:var(--low-tint);border-color:var(--low-line)}
+  .v-icon{width:44px;height:44px;border-radius:12px;flex:none;display:grid;place-items:center;
+    color:#fff;font-size:22px;font-weight:600}
+  .verdict.high .v-icon{background:var(--high)} .verdict.med .v-icon{background:var(--med)} .verdict.low .v-icon{background:var(--low)}
+  .v-word{font-family:"Clash Display",sans-serif;font-weight:600;font-size:24px;line-height:1.1;letter-spacing:-.01em}
+  .verdict.high .v-word{color:var(--high)} .verdict.med .v-word{color:var(--med)} .verdict.low .v-word{color:var(--low)}
+  .v-sub{font-size:14px;color:var(--muted);margin-top:1px}
+  @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  .summary{font-size:16px;color:var(--ink);line-height:1.55;margin:20px 0 22px}
+
+  /* Meter */
+  .meter{margin:0 0 6px}
+  .meter-track{position:relative;height:10px;border-radius:999px;overflow:visible;
+    background:linear-gradient(90deg,var(--low-tint) 0 40%,var(--med-tint) 40% 70%,var(--high-tint) 70% 100%)}
+  .thumb{position:absolute;top:50%;width:18px;height:18px;border-radius:50%;background:var(--surface);
+    border:3px solid var(--ink);transform:translate(-50%,-50%);box-shadow:var(--shadow-sm);
+    transition:left .7s cubic-bezier(.2,.85,.2,1)}
+  .meter-labels{display:flex;justify-content:space-between;font-size:12px;color:var(--faint);margin-top:11px}
+  .score{font-size:13.5px;color:var(--muted);margin-top:14px}
+  .score b{color:var(--ink);font-weight:600}
+
+  /* Findings */
+  .findings-head{font-family:"Clash Display",sans-serif;font-weight:600;font-size:15px;
+    margin:28px 0 4px;display:flex;justify-content:space-between;align-items:baseline}
+  .findings-head .meta{font-size:13px;color:var(--faint);font-family:"General Sans",sans-serif;font-weight:400}
+  .ledger{list-style:none;margin:6px 0 0;padding:0}
+  .finding{padding:17px 0;border-bottom:1px solid var(--line)}
+  .finding:last-child{border-bottom:none}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
+    padding:4px 11px 4px 9px;border-radius:999px;line-height:1}
+  .pill .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+  .pill.high{color:var(--high);background:var(--high-tint)}
+  .pill.med{color:var(--med);background:var(--med-tint)}
+  .pill.low{color:var(--low);background:var(--low-tint)}
+  .finding h3{font-size:16px;font-weight:600;margin:11px 0 4px;letter-spacing:-.005em}
+  .finding p{margin:0;font-size:14.5px;color:var(--muted);line-height:1.5}
+  .snip{font-family:"JetBrains Mono",monospace;font-size:12.5px;color:var(--ink);
+    background:var(--field);border:1px solid var(--line);border-radius:8px;
+    padding:6px 10px;margin-top:10px;display:inline-block;max-width:100%;overflow-wrap:anywhere}
+
+  /* Specimen */
+  .specimen{white-space:pre-wrap;font-family:"JetBrains Mono",monospace;font-size:13px;line-height:1.75;
+    color:var(--ink);word-break:break-word}
+  mark{padding:1px 4px;border-radius:5px;color:inherit;font-weight:500}
+  mark.high{background:var(--high-tint);box-shadow:inset 0 -2px 0 var(--high)}
+  mark.med{background:var(--med-tint);box-shadow:inset 0 -2px 0 var(--med)}
+  mark.low{background:var(--low-tint);box-shadow:inset 0 -2px 0 var(--low)}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:24px;padding-top:16px;border-top:1px solid var(--line);
+    font-size:13px;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:8px}
+  .legend i{width:14px;height:14px;border-radius:4px;display:inline-block}
+  .lg-high{background:var(--high-tint);box-shadow:inset 0 -3px 0 var(--high)}
+  .lg-med{background:var(--med-tint);box-shadow:inset 0 -3px 0 var(--med)}
+  .lg-low{background:var(--low-tint);box-shadow:inset 0 -3px 0 var(--low)}
+
+  .colophon{margin-top:34px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;
+    font-size:13.5px;color:var(--faint);line-height:1.6}
+  .colophon a{color:var(--muted);text-decoration:none;border-bottom:1px solid var(--line-2)}
+  .colophon a:hover{color:var(--ink)}
+
+  @media(max-width:840px){
+    .report{grid-template-columns:1fr}
+    .note{margin-left:0;max-width:none;width:100%}
+  }
+  @media(prefers-reduced-motion:reduce){
+    .verdict{animation:none}.thumb{transition:none}.btn:hover{transform:none}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="mark">T</div>
+      <div class="brand-name">Tell</div>
+    </div>
+  </div>
+
+  <header class="hero">
+    <h1>Spot the <em>phish</em>.</h1>
+    <p>Paste a suspicious email and see exactly what gives it away.</p>
+  </header>
+
+  <section class="card">
+    <label class="label" for="input">Paste the email — headers, links and body if you have them</label>
+    <textarea id="input" spellcheck="false" placeholder="From: PayPaI Security &lt;service@paypa1-alerts.com&gt;&#10;Subject: Your account has been limited&#10;&#10;Dear Customer, we detected unusual activity..."></textarea>
+    <div class="controls">
+      <button class="btn btn-primary" id="examine">Examine email</button>
+      <button class="btn btn-soft" id="sample">Load a sample</button>
+      <button class="btn btn-quiet" id="clear">Clear</button>
+      <span class="note">A second opinion, not a guarantee. When in doubt, don't click.</span>
+    </div>
+  </section>
+
+  <section class="report" id="report" hidden>
+    <div class="card">
+      <div class="panel-title"><h2>Ruling</h2><span class="meta" id="tstamp"></span></div>
+      <div id="verdictArea"></div>
+      <div class="findings-head"><span>Findings</span><span class="meta" id="fcount"></span></div>
+      <ul class="ledger" id="ledger"></ul>
+    </div>
+    <div class="card">
+      <div class="panel-title"><h2>Annotated specimen</h2><span class="meta">evidence marked</span></div>
+      <div class="specimen" id="specimen"></div>
+      <div class="legend">
+        <span><i class="lg-high"></i>High</span>
+        <span><i class="lg-med"></i>Medium</span>
+        <span><i class="lg-low"></i>Low</span>
+      </div>
+    </div>
+  </section>
+
+  <footer class="colophon">
+    <span>Runs in your browser. A client-side phishing examiner — all analysis<br>happens locally, and no email is uploaded or stored.</span>
+    <span>Built by Simi Olusola · <a href="#">github.com/I-amour</a></span>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var SUS_TLD=["zip","mov","xyz","top","click","country","gq","work","link","rest","fit","review","loan","kim","men"];
+  var SHORTENERS=["bit.ly","tinyurl.com","goo.gl","t.co","ow.ly","is.gd","buff.ly","rebrand.ly","cutt.ly","shorturl.at"];
+
+  function esc(s){return s.replace(/[&<>]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;"}[c];});}
+  function findAll(text,regex){var out=[],m;regex.lastIndex=0;
+    while((m=regex.exec(text))!==null){out.push({i:m.index,t:m[0]});if(m.index===regex.lastIndex)regex.lastIndex++;}return out;}
+
+  function analyse(raw){
+    var findings=[],lower=raw.toLowerCase();
+    var add=function(sev,title,explain,snippet){findings.push({sev:sev,title:title,explain:explain,snippet:snippet||""});};
+
+    var urgency=/\b(urgent(ly)?|immediately|act now|within \d+ ?(hours?|hrs?|minutes?)|as soon as possible|final (notice|warning)|your account (has been|will be) (suspended|limited|locked|closed|deactivated)|failure to (respond|verify|act))\b/gi;
+    var uHits=findAll(raw,urgency);
+    if(uHits.length)add("high","Manufactured urgency","Legitimate providers rarely threaten immediate account loss to force a fast decision. Pressure is the oldest phishing lever.",uHits[0].t);
+
+    var cred=/\b(verify|confirm|update|validate|re-?activate)\b[^.\n]{0,40}\b(your )?(password|account|billing|payment|card|bank|identity|login|credentials|details)\b/gi;
+    var cHits=findAll(raw,cred);
+    if(cHits.length)add("high","Asks you to confirm credentials or payment","Requests to \u201cverify\u201d passwords, cards or bank details by following a link are a defining trait of credential-harvesting emails.",cHits[0].t.trim());
+
+    var greet=/\b(dear (customer|user|client|member|account holder|sir\/madam)|valued customer)\b/gi;
+    var gHits=findAll(raw,greet);
+    if(gHits.length)add("med","Generic, impersonal greeting","A company you hold an account with usually knows your name. Bulk phishing addresses everyone the same way.",gHits[0].t);
+
+    var urlRe=/\bhttps?:\/\/[^\s"'<>)]+/gi, urls=findAll(raw,urlRe), ipUrl=/\bhttps?:\/\/\d{1,3}(\.\d{1,3}){3}\b/i;
+    urls.forEach(function(u){
+      var url=u.t;
+      if(ipUrl.test(url))add("high","Link points to a raw IP address","Real brands use named domains. A numeric address hides who actually owns the destination.",url);
+      if(/xn--/i.test(url))add("high","Disguised (punycode) domain","\u201cxn--\u201d marks a domain using look-alike foreign characters to imitate a trusted name.",url);
+      SHORTENERS.forEach(function(s){if(url.toLowerCase().indexOf(s)>-1)add("med","Shortened link hides its destination","Link shorteners conceal where you'll actually land. Preview before trusting one in an unexpected email.",url);});
+      var host=(url.replace(/^https?:\/\//i,"").split(/[\/?#]/)[0]||""), tld=host.split(".").pop().toLowerCase();
+      if(SUS_TLD.indexOf(tld)>-1)add("med","Uncommon top-level domain \u00b7 ."+tld,"The ."+tld+" domain is cheap, rarely used by major brands and disproportionately common in abuse.",host);
+      if(host.split(".").length>=4)add("med","Brand name buried in a longer domain","A trusted word early in the address (like brand.com.something.ru) doesn't mean the site belongs to that brand \u2014 the real owner is the last part.",host);
+    });
+
+    var anchorRe=/<a[^>]+href\s*=\s*["']([^"']+)["'][^>]*>(.*?)<\/a>/gis, am; anchorRe.lastIndex=0;
+    while((am=anchorRe.exec(raw))!==null){
+      var href=am[1], txt=am[2].replace(/<[^>]+>/g,"").trim();
+      var textDomain=(txt.match(/[a-z0-9.-]+\.[a-z]{2,}/i)||[])[0];
+      var hrefDomain=(href.replace(/^https?:\/\//i,"").split(/[\/?#]/)[0]||"");
+      if(textDomain&&hrefDomain&&textDomain.toLowerCase()!==hrefDomain.toLowerCase()&&hrefDomain.indexOf(textDomain.toLowerCase())===-1)
+        add("high","Link text doesn't match its destination","The visible link reads \u201c"+textDomain+"\u201d but actually leads to \u201c"+hrefDomain+"\u201d. Classic bait-and-switch.",txt+"  \u2192  "+hrefDomain);
+    }
+
+    var fromRe=/^from:\s*("?)([^"<\n]*?)\1\s*<([^>]+)>/im, fm=fromRe.exec(raw);
+    if(fm){
+      var display=fm[2].trim(), addr=fm[3].trim();
+      var brand=(display.match(/\b(paypal|apple|microsoft|amazon|google|netflix|hmrc|dhl|dpd|barclays|hsbc|natwest|santander|coinbase|meta|instagram)\b/i)||[])[0];
+      var addrDomain=(addr.split("@")[1]||"").toLowerCase();
+      if(brand&&addrDomain&&addrDomain.indexOf(brand.toLowerCase())===-1)
+        add("high","Sender name impersonates a brand","The email signs itself \u201c"+display+"\u201d but is sent from "+addrDomain+", which isn't that company's domain.",display+"  <"+addr+">");
+      if(/[A-Za-z][I1l]{1}[A-Za-z]/.test(display)&&/paypa|micr0|g00gle|amaz0n/i.test(display))
+        add("med","Look-alike characters in sender name","Swapping letters for look-alikes (capital \u201cI\u201d for \u201cl\u201d, zero for \u201co\u201d) is used to fake a familiar name.",display);
+    }
+
+    var rt=/^reply-to:\s*[^\n]*?([a-z0-9.-]+\.[a-z]{2,})/im.exec(raw);
+    if(fm&&rt){var fromDom=((fm[3].split("@")[1])||"").toLowerCase();
+      if(rt[1]&&fromDom&&rt[1].toLowerCase()!==fromDom)
+        add("med","Replies would go to a different domain","Answers are quietly routed to "+rt[1]+" rather than the apparent sender \u2014 a way to collect responses off-brand.",rt[1]);}
+
+    var att=/\b[\w.-]+\.(zip|rar|7z|exe|scr|html?|iso|img|docm|xlsm|js)\b/gi;
+    var aHits=findAll(raw,att).filter(function(h){return !/\.(html?)$/i.test(h.t)||/attach|open|download|invoice|receipt/i.test(lower);});
+    if(aHits.length)add("med","Risky attachment type mentioned","Archives and executable or macro-enabled files (.zip, .exe, .html, .docm) are common delivery vehicles for malware.",aHits[0].t);
+
+    var reward=/\b(you('ve| have) won|congratulations|claim your (prize|reward|refund)|gift card|you are (a|the) (winner|selected)|tax refund)\b/gi;
+    var rHits=findAll(raw,reward);
+    if(rHits.length)add("med","Too-good-to-be-true reward","Unexpected prizes, refunds and gift cards are lures designed to make you act before thinking.",rHits[0].t);
+
+    var threat=/\b(legal action|your (data|files) will be (deleted|lost)|permanently (closed|disabled)|report(ed)? to authorities)\b/gi;
+    var tHits=findAll(raw,threat);
+    if(tHits.length)add("med","Threatens a consequence","Fear of loss or punishment is used to short-circuit your judgement.",tHits[0].t);
+
+    return {findings:findings};
+  }
+
+  var WEIGHT={high:34,med:16,low:8};
+  function score(f){var r=0;f.forEach(function(x){r+=WEIGHT[x.sev]||0;});return Math.min(100,r);}
+  function band(s){return s>=70?"high":s>=40?"med":"low";}
+  var LABEL={high:{v:"Likely phishing",sub:"Don't click any links",word:"strongly resembles a phishing attempt",icon:"\u2715"},
+             med:{v:"Suspicious",sub:"Proceed with care",word:"shows several warning signs",icon:"!"},
+             low:{v:"Looks clear",sub:"No strong signals found",word:"shows no strong phishing signals",icon:"\u2713"}};
+
+  function annotate(raw,findings){
+    var ranges=[],used={};
+    findings.forEach(function(f){
+      if(!f.snippet)return;
+      var needle=f.snippet.split("  \u2192  ")[0].split("  <")[0];
+      if(needle.length<3)return;
+      var idx=raw.toLowerCase().indexOf(needle.toLowerCase());
+      if(idx>-1){var key=idx+":"+needle.length;if(used[key])return;used[key]=1;
+        ranges.push({start:idx,end:idx+needle.length,sev:f.sev});}
+    });
+    ranges.sort(function(a,b){return a.start-b.start||b.end-a.end;});
+    var clean=[],lastEnd=-1;
+    ranges.forEach(function(r){if(r.start>=lastEnd){clean.push(r);lastEnd=r.end;}});
+    var out="",cur=0;
+    clean.forEach(function(r){out+=esc(raw.slice(cur,r.start));
+      out+='<mark class="'+r.sev+'">'+esc(raw.slice(r.start,r.end))+'</mark>';cur=r.end;});
+    out+=esc(raw.slice(cur));return out;
+  }
+
+  var $=function(id){return document.getElementById(id);};
+  function pad(n){return n<10?"0"+n:n;}
+
+  function render(raw){
+    var f=analyse(raw).findings, s=score(f), b=band(s), L=LABEL[b];
+    $("report").hidden=false;
+    var now=new Date();
+    $("tstamp").textContent=pad(now.getHours())+":"+pad(now.getMinutes());
+
+    var pos=Math.max(3,Math.min(97,s));
+    $("verdictArea").innerHTML=
+      '<div class="verdict '+b+'"><div class="v-icon">'+L.icon+'</div>'+
+        '<div><div class="v-word">'+L.v+'</div><div class="v-sub">'+L.sub+'</div></div></div>'+
+      '<p class="summary">This email '+L.word+'. '+(f.length?('We flagged '+f.length+' signal'+(f.length>1?'s':'')+' below'):'Nothing notable came up')+'.</p>'+
+      '<div class="meter"><div class="meter-track"><span class="thumb" style="left:'+pos+'%"></span></div>'+
+        '<div class="meter-labels"><span>Clear</span><span>Caution</span><span>Phishing</span></div>'+
+        '<div class="score">Risk score <b>'+s+'/100</b> · weighted from '+f.length+' finding'+(f.length===1?'':'s')+'</div></div>';
+
+    $("fcount").textContent=f.length+" total";
+    var led=$("ledger");
+    if(!f.length){
+      led.innerHTML='<li class="finding"><span class="pill low"><span class="dot"></span>Clear</span>'+
+        '<p style="margin-top:11px">None of the common phishing tells matched. That isn\u2019t a clean bill of health — targeted attacks can be subtle — but nothing here trips the usual wires.</p></li>';
+    }else{
+      var order={high:0,med:1,low:2};
+      f.sort(function(a,b){return order[a.sev]-order[b.sev];});
+      var cap={high:"High",med:"Medium",low:"Low"};
+      led.innerHTML=f.map(function(x){
+        return '<li class="finding"><span class="pill '+x.sev+'"><span class="dot"></span>'+cap[x.sev]+'</span>'+
+          '<h3>'+esc(x.title)+'</h3><p>'+x.explain+'</p>'+(x.snippet?'<span class="snip">'+esc(x.snippet)+'</span>':'')+'</li>';
+      }).join("");
+    }
+    $("specimen").innerHTML=annotate(raw,f);
+    $("report").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"auto":"smooth",block:"nearest"});
+  }
+
+  var SAMPLE=
+"From: PayPaI Service <service@secure-paypa1.com>\n"+
+"Reply-To: collect@mail-verify.top\n"+
+"Subject: Urgent: your account has been limited\n\n"+
+"Dear Customer,\n\n"+
+"We detected unusual activity on your account. For your protection your account has been limited. "+
+"You must verify your password and billing details within 24 hours or your account will be permanently closed.\n\n"+
+"Please confirm your identity here: <a href=\"http://185.234.72.19/paypal/login\">https://www.paypal.com/account</a>\n\n"+
+"Failure to respond will result in your account being suspended. Congratulations \u2014 verified users also receive a \u00a350 gift card.\n\n"+
+"Attached: account_statement.zip\n\n"+
+"PayPaI Security Team";
+
+  $("examine").addEventListener("click",function(){
+    var v=$("input").value.trim();
+    if(!v){var t=$("input");t.focus();t.style.borderColor="var(--high)";t.style.boxShadow="0 0 0 4px var(--high-tint)";
+      setTimeout(function(){t.style.borderColor="";t.style.boxShadow="";},1000);return;}
+    render(v);
+  });
+  $("sample").addEventListener("click",function(){$("input").value=SAMPLE;render(SAMPLE);});
+  $("clear").addEventListener("click",function(){$("input").value="";$("report").hidden=true;$("input").focus();});
+})();
+</script>
+</body>
+</html>
